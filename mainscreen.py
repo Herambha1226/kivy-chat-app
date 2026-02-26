@@ -267,13 +267,13 @@ class all_users(MDScreen):
 
 
 
-class Example(MDApp):
+"""class Example(MDApp):
     def build(self):
         sm = MDScreenManager()
         sm.add_widget(home(name="home"))
         sm.add_widget(chatting(name="chatting"))
         sm.add_widget(all_users(name="all_users"))
-        return sm
-
+        return sm"""
+"""
 if __name__ == "__main__":
-    Example().run()
+    Example().run()"""

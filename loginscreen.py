@@ -264,6 +264,9 @@ class Login_Screen(MDScreen):
             if result["message"] == "User Successfully Login.":
                 toast("Login Succssfully")
                 self.manager.current = "home"
+                self.manager.user_id = result["user_id"]
+                self.manager.get_screen("home").load_friends()
+                
 
         except Exception as e:
             toast("There is a problem in login !")

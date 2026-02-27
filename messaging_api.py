@@ -10,11 +10,25 @@ app.secret_key = "@messaging-to-friend"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///test.db"
 db = SQLAlchemy(app)
 
+friends = db.Table(
+    'friends',
+    db.Column('user_id',db.Integer,db.ForeignKey('users.id')),
+    db.Column('friend_id',db.Integer,db.ForeignKey('users.id'))
+)
 class User_Creation(db.Model):
+    __tablename__ = "users"
+
     id = db.Column(db.Integer,primary_key=True)
     user_email = db.Column(db.String(200),nullable=False,unique=True)
     user_name = db.Column(db.String(150),nullable=False,unique=True)
     user_password = db.Column(db.String(150),nullable=False)
+    friends_list = db.relationship(
+        'User_Creation',
+        secondary=friends,
+        primaryjoin=(friends.c.user_id == id),
+        secondaryjoin=(friends.c.friend_id == id),
+        backref = 'friend_of'
+    )
 
 
 otp_storage = {}
@@ -82,23 +96,93 @@ def user_login():
     user = User_Creation.query.filter_by(user_name = user_name).first()
 
     if user and check_password_hash(user.user_password,user_pass):
-        return jsonify({"message":"User Successfully Login."})
+        return jsonify({
+            "message":"User Successfully Login.",
+            "user_id":user.id,
+            "user_name":user.user_name,
+            "email":user.user_email,
+            "password" : user.user_password
+            })
     else:
         return jsonify({"message":"User Credentials are Wrong."})
 
+@app.route("/add_friend",methods=["POST"])
+def add_friend():
+    data = request.get_json()
+    user_id = data.get("user_id")
+    friend_name = data.get("friend_name")
 
+    friend = User_Creation.query.filter_by(user_name=friend_name).first()
+    id = friend.id
+    user = User_Creation.query.get(id)
+    
+
+    if not user or not friend:
+        return jsonify({"message":"user not found"})
+    
+    user.friends_list.append(friend)
+    friend.friends_list.append(user)
+    db.session.commit()
+
+    return jsonify({"message":"Friend added Successfully"})
+
+
+@app.route("/get_friends/<int:user_id>",methods=["GET"])
+def get_friends(user_id):
+    user = User_Creation.query.get(user_id)
+
+    if not user:
+        return jsonify({"message":"User not found"})
+    user_friends = user.friends_list
+    friends = []
+    for f in user_friends:
+        friends.append({
+            "id" : f.id,
+            "user_name":f.user_name,
+            "email":f.user_email
+        })
+    return jsonify({"friends":friends})
+
+@app.route("/all_friends",methods=["GET"])
+def get_all_friends():
+    user = User_Creation.query.all()
+    if not user:
+        return jsonify({"message":"User not Found"})
+    friends = []
+    for f in user:
+        friends.append({
+            "id" : f.id,
+            "user_name":f.user_name,
+            "email":f.user_email
+        })
+    return jsonify({"friends":friends})
+    
 
 @app.route("/debug_users")
 def debug_users():
     users = User_Creation.query.all()
+    # In Flask shell or temporary route
+
 
     for user in users:
         print(user.id, user.user_email, user.user_name)
 
     return jsonify({"message": "Printed all users in terminal"})
 
+from sqlalchemy import delete
+
+@app.route("/reset_friends")
+def reset_friends():
+    db.session.execute(delete(friends))
+    db.session.commit()
+    return "Friends table cleared!"
 
 
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, nullable=False)
+    receiver_id = db.Column(db.Integer, nullable=False)
+    text = db.Column(db.Text, nullable=False)
 
 
 

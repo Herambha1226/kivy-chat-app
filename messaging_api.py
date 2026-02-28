@@ -235,8 +235,11 @@ def send_message():
 
     return jsonify({"message": "Message sent successfully"})
 
-@app.route("/get_messages/<int:user_id>/<int:friend_id>", methods=["GET"])
-def get_messages(user_id, friend_id):
+@app.route("/get_messages", methods=["POST"])
+def get_messages():
+    data = request.get_json()
+    user_id = data.get("user_id")
+    friend_id = data.get("friend_id")
 
     messages = Message.query.filter(
         ((Message.sender_id == user_id) & (Message.receiver_id == friend_id)) |

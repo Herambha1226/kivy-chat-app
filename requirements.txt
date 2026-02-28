@@ -1,0 +1,7 @@
+Flask
+flask-cors
+requests
+gunicorn
+kivy
+kivymd
+python3.10 (stable for kivy or kivymd)

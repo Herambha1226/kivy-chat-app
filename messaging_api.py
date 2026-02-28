@@ -112,13 +112,16 @@ def add_friend():
     user_id = data.get("user_id")
     friend_name = data.get("friend_name")
 
+    if not user_id or not friend_name:
+        return jsonify({"message":"Missing data"})
+    user = db.session.get(User_Creation, user_id)
     friend = User_Creation.query.filter_by(user_name=friend_name).first()
-    id = friend.id
-    user = User_Creation.query.get(id)
-    
 
     if not user or not friend:
-        return jsonify({"message":"user not found"})
+        return jsonify({"message":"User not found"})
+    if friend in user.friends_list:
+        return jsonify({"message":"Already Friends"})
+
     
     user.friends_list.append(friend)
     friend.friends_list.append(user)
@@ -129,7 +132,7 @@ def add_friend():
 
 @app.route("/get_friends/<int:user_id>",methods=["GET"])
 def get_friends(user_id):
-    user = User_Creation.query.get(user_id)
+    user = db.session.get(User_Creation,user_id)
 
     if not user:
         return jsonify({"message":"User not found"})
@@ -178,12 +181,79 @@ def reset_friends():
     return "Friends table cleared!"
 
 
-class Message(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    sender_id = db.Column(db.Integer, nullable=False)
-    receiver_id = db.Column(db.Integer, nullable=False)
-    text = db.Column(db.Text, nullable=False)
+from datetime import datetime
 
+class Message(db.Model):
+    __tablename__ = "messages"
+    
+    id = db.Column(db.Integer,primary_key = True)
+
+    sender_id = db.Column(
+        db.Integer,
+        db.ForeignKey('users.id'),
+        nullable = False
+    )
+
+    receiver_id = db.Column(
+        db.Integer,
+        db.ForeignKey('users.id'),
+        nullable = False
+    )
+
+    message = db.Column(db.Text,nullable=False)
+    timestamp = db.Column(
+        db.DateTime,
+        default = datetime.utcnow
+    )
+ 
+@app.route("/send_message", methods=["POST"])
+def send_message():
+    data = request.get_json()
+
+    sender_id = data.get("sender_id")
+    receiver_id = data.get("receiver_id")
+    message_text = data.get("message")
+
+    if not sender_id or not receiver_id or not message_text:
+        return jsonify({"message": "Missing data"}), 400
+
+    # Check users exist
+    sender = db.session.get(User_Creation, sender_id)
+    receiver = db.session.get(User_Creation, receiver_id)
+
+    if not sender or not receiver:
+        return jsonify({"message": "User not found"}), 404
+
+    new_message = Message(
+        sender_id=sender_id,
+        receiver_id=receiver_id,
+        message=message_text
+    )
+
+    db.session.add(new_message)
+    db.session.commit()
+
+    return jsonify({"message": "Message sent successfully"})
+
+@app.route("/get_messages/<int:user_id>/<int:friend_id>", methods=["GET"])
+def get_messages(user_id, friend_id):
+
+    messages = Message.query.filter(
+        ((Message.sender_id == user_id) & (Message.receiver_id == friend_id)) |
+        ((Message.sender_id == friend_id) & (Message.receiver_id == user_id))
+    ).order_by(Message.timestamp.asc()).all()
+
+    chat = []
+
+    for msg in messages:
+        chat.append({
+            "sender_id": msg.sender_id,
+            "receiver_id": msg.receiver_id,
+            "message": msg.message,
+            "time": msg.timestamp.strftime("%H:%M")
+        })
+
+    return jsonify({"messages": chat})
 
 
 with app.app_context():

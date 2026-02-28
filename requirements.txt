@@ -8,4 +8,3 @@ random
 smtplib
 email
 requests
-python3.10 (stable for kivy or kivymd)

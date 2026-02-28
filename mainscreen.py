@@ -11,7 +11,7 @@ from kivymd.uix.textfield import MDTextField
 from kivymd.uix.screen import MDScreen
 from kivy.utils import get_color_from_hex
 from kivymd.uix.scrollview import MDScrollView
-from kivymd.uix.list import MDList,OneLineAvatarIconListItem,IconLeftWidget
+from kivymd.uix.list import MDList,OneLineAvatarIconListItem,IconLeftWidget,OneLineListItem
 from kivymd.toast import toast
 import requests
 
@@ -83,8 +83,18 @@ class home(MDScreen):
 
     def move_to_chat(self, instance):
         friend_name = instance.text
-        self.manager.get_screen("chatting").friend_name = friend_name
+        friend_id = self.get_friend_id(friend_name)
+
+        if friend_id is None:
+            print("Friend ID not found")
+            return
+
+        chatting_screen = self.manager.get_screen("chatting")
+        chatting_screen.friend_name = friend_name
+        chatting_screen.friend_id = friend_id
+
         self.manager.current = "chatting"
+
 
     def move_to_all_users(self, *args):
         self.manager.current = "all_users"
@@ -92,9 +102,9 @@ class home(MDScreen):
     def refresh_friend_list(self):
         self.list.clear_widgets()  # ⭐ VERY IMPORTANT
 
-        for name in self.friends:
+        for friend in self.friends:
             item = OneLineAvatarIconListItem(
-                text=name,
+                text=friend["user_name"],
                 on_release=self.move_to_chat
             )
             icon = IconLeftWidget(icon="account")
@@ -102,7 +112,7 @@ class home(MDScreen):
             self.list.add_widget(item)
 
     def load_friends(self):
-        user_id = self.manager.user_id
+        user_id = getattr(self.manager, "user_id", None)
         url = f"http://127.0.0.1:5000/get_friends/{user_id}"
 
         try:
@@ -114,13 +124,19 @@ class home(MDScreen):
 
             if "friends" in data:
                 for friend in data["friends"]:
-                    self.friends.append(friend["user_name"])
+                    self.friends.append(friend)
 
                 self.refresh_friend_list()  # ⭐ UPDATE UI PROPERLY
 
         except Exception as e:
             print("Error fetching friends:", e)
             toast("Fetching Error")
+    def get_friend_id(self, friend_name):
+        for friend in self.friends:
+            if friend["user_name"] == friend_name:
+                return friend["id"]
+        return None
+
 
 
 
@@ -129,72 +145,141 @@ class chatting(MDScreen):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        name = "chatting"
-
         self.friend_name = ""
+        name="chatting"
 
-        layout = MDFloatLayout()
-
-
-        main_card = MDCard(
-            size_hint = (1,1),
-            md_bg_color = get_color_from_hex("#3B516E")
+        # MAIN VERTICAL LAYOUT (VERY IMPORTANT)
+        main_layout = MDBoxLayout(
+            orientation="vertical",
+            size_hint=(1, 1),
+            md_bg_color=get_color_from_hex("#3B516E"),
         )
 
-        text_card = MDCard(
-            size_hint = (1,0.1),
-            md_bg_color=get_color_from_hex("#A4A5A6")
-        )
-
-        text_field = MDTextField(
-            mode = "round",
-            size_hint_x =0.8,
-            pos_hint = {"center_x":0.5,"center_y":0.5},
-            text_color_focus= get_color_from_hex("#3B516E"),
-            hint_text="message..."
-        )
-        send_btn = MDIconButton(
-            icon="send",
-            pos_hint = {"center_y":0.5}
-        )
-
+        # 🔹 HEADER (Friend Card - Top)
         friend_info = MDCard(
-            size_hint = (1,0.2),
-            pos_hint = {"center_x":0.5,"center_y":1},
-            md_bg_color = get_color_from_hex("#A4A5A6")
+            size_hint=(1, 0.12),
+            md_bg_color=get_color_from_hex("#A4A5A6"),
+            padding=10
+        )
+
+        header_layout = MDBoxLayout(
+            orientation="horizontal"
         )
 
         back_btn = MDIconButton(
-            icon= "arrow-left",
-            pos_hint = {"center_x":0.1,"center_y":0.3},
+            icon="arrow-left",
             on_release=self.back_to_chat_list
         )
 
         self.header = MDLabel(
-            text = "",
+            text="",
             halign="center",
-            font_style="H5",
-            pos_hint={"center_x":0.5,"center_y":0.3}
+            font_style="H5"
         )
 
-        friend_info.add_widget(back_btn)
-        friend_info.add_widget(self.header)
+        header_layout.add_widget(back_btn)
+        header_layout.add_widget(self.header)
+        friend_info.add_widget(header_layout)
 
-        main_card.add_widget(friend_info)
+        # 🔹 CHAT SCROLL (Middle - UNDER HEADER)
+        scroll = MDScrollView(
+            size_hint=(1, 0.78)
+        )
 
-        text_card.add_widget(text_field)
-        text_card.add_widget(send_btn)
+        self.chat_list = MDList()
+        scroll.add_widget(self.chat_list)
 
-        layout.add_widget(main_card)
-        layout.add_widget(text_card)
+        # 🔹 TEXT INPUT CARD (Bottom)
+        text_card = MDCard(
+            size_hint=(1, 0.1),
+            md_bg_color=get_color_from_hex("#A4A5A6"),
+            padding=10
+        )
 
-        self.add_widget(layout)
+        input_layout = MDBoxLayout(
+            orientation="horizontal",
+            spacing=10
+        )
+
+        self.text_field = MDTextField(
+            mode="round",
+            hint_text="message...",
+            size_hint_x=0.85,
+            text_color_focus= get_color_from_hex("#3B516E"),
+            line_color_focus = get_color_from_hex("#3B516E")
+        )
+
+        send_btn = MDIconButton(
+            icon="send",
+            on_release=lambda x: self.send_message(self.text_field.text)
+        )
+
+        input_layout.add_widget(self.text_field)
+        input_layout.add_widget(send_btn)
+        text_card.add_widget(input_layout)
+
+        # ADD ALL IN ORDER (TOP → MIDDLE → BOTTOM)
+        main_layout.add_widget(friend_info)
+        main_layout.add_widget(scroll)
+        main_layout.add_widget(text_card)
+
+        self.add_widget(main_layout)
+
 
     def back_to_chat_list(self,*args):
         self.manager.current = "home"
     
     def on_pre_enter(self, *args):
         self.header.text = self.friend_name
+    
+    def send_message(self, message_text):
+        url = "http://127.0.0.1:5000/send_message"
+
+        data = {
+            "sender_id": self.manager.user_id,
+            "receiver_id": self.friend_id,  # store when opening chat
+            "message": message_text
+        }
+
+        try:
+            response = requests.post(url, json=data)
+            result = response.json()
+            print(result)
+
+            # Reload chat after sending
+            self.load_messages()
+            self.text_field.text = ""
+
+        except Exception as e:
+            print("Send error:", e)
+    
+    def load_messages(self):
+        user_id = self.manager.user_id
+        friend_id = self.friend_id
+
+        url = f"http://127.0.0.1:5000/get_messages/{user_id}/{friend_id}"
+
+        try:
+            response = requests.get(url)
+            data = response.json()
+
+            self.chat_list.clear_widgets()
+
+            if "messages" in data:
+                for msg in data["messages"]:
+                    text = msg["message"]
+
+                    if msg["sender_id"] == user_id:
+                        bubble = OneLineListItem(text=f"You: {text}")
+                    else:
+                        bubble = OneLineListItem(text=f"Friend: {text}")
+
+                    self.chat_list.add_widget(bubble)
+
+        except Exception as e:
+            print("Load message error:", e)
+
+
 
 
 
@@ -301,20 +386,16 @@ class all_users(MDScreen):
     
     def add_friend(self,friend_name):
         if friend_name not in self.friends:
-            """self.friends.append(friend_name)
-            friend_screen = self.manager.get_screen("home")
-            friend_screen.friends.append(friend_name)
-            friend_screen.refresh_friend_list()
-            self.manager.current = "home"""
-
             url = "http://127.0.0.1:5000/add_friend"
             data = {
+                "user_id":self.manager.user_id,
                 "friend_name":friend_name
             }
             try:
                 response = requests.post(url,json=data)
                 result = response.json()
                 toast(result["message"])
+                self.manager.current = "home"
             except Exception as e:
                 toast("Adding Friend is Not work")
         else:

@@ -13,6 +13,7 @@ from kivy.utils import get_color_from_hex
 from kivymd.uix.scrollview import MDScrollView
 from kivymd.uix.list import MDList,OneLineAvatarIconListItem,IconLeftWidget,OneLineListItem
 from kivymd.toast import toast
+from kivy.clock import Clock
 import requests
 
 
@@ -118,7 +119,6 @@ class home(MDScreen):
         try:
             response = requests.get(url)
             data = response.json()
-            print(data)
 
             self.friends.clear()  # clear old data
 
@@ -136,6 +136,51 @@ class home(MDScreen):
             if friend["user_name"] == friend_name:
                 return friend["id"]
         return None
+
+
+from kivy.metrics import dp
+from kivy.uix.anchorlayout import AnchorLayout
+
+class MessageBubble(AnchorLayout):
+    def __init__(self, text, sender="me", **kwargs):
+        super().__init__(**kwargs)
+
+        self.size_hint_y = None
+        self.anchor_x = "right" if sender == "me" else "left"
+        self.padding = (dp(10), dp(5))
+
+        # Bubble Card
+        bubble = MDCard(
+            padding=dp(10),
+            md_bg_color=(0.2, 0.6, 1, 1) if sender == "me" else (0.3, 0.3, 0.3, 1),
+            radius=[15, 15, 15, 15],
+            size_hint=(None, None),
+        )
+
+        # Label
+        label = MDLabel(
+            text=text,
+            theme_text_color="Custom",
+            text_color=(1, 1, 1, 1),
+            size_hint=(None, None),
+            text_size=(dp(250), None),  # max width
+        )
+
+        # Let label calculate height automatically
+        label.bind(
+            texture_size=lambda instance, value: setattr(instance, "size", value)
+        )
+
+        bubble.add_widget(label)
+
+        # Adjust bubble size after label updates
+        def update_bubble_size(*args):
+            bubble.size = (label.width + dp(20), label.height + dp(20))
+            self.height = bubble.height + dp(10)
+
+        label.bind(size=update_bubble_size)
+
+        self.add_widget(bubble)
 
 
 
@@ -182,12 +227,14 @@ class chatting(MDScreen):
         friend_info.add_widget(header_layout)
 
         # 🔹 CHAT SCROLL (Middle - UNDER HEADER)
-        scroll = MDScrollView(
+        self.scroll = MDScrollView(
             size_hint=(1, 0.78)
         )
 
         self.chat_list = MDList()
-        scroll.add_widget(self.chat_list)
+        self.chat_list.size_hint_y = None
+        self.chat_list.bind(minimum_height=self.chat_list.setter("height"))
+        self.scroll.add_widget(self.chat_list)
 
         # 🔹 TEXT INPUT CARD (Bottom)
         text_card = MDCard(
@@ -220,7 +267,7 @@ class chatting(MDScreen):
 
         # ADD ALL IN ORDER (TOP → MIDDLE → BOTTOM)
         main_layout.add_widget(friend_info)
-        main_layout.add_widget(scroll)
+        main_layout.add_widget(self.scroll)
         main_layout.add_widget(text_card)
 
         self.add_widget(main_layout)
@@ -231,6 +278,15 @@ class chatting(MDScreen):
     
     def on_pre_enter(self, *args):
         self.header.text = self.friend_name
+        self.load_messages()
+        self.event = Clock.schedule_interval(self.auto_refresh,2)
+
+    def auto_refresh(self,dt):
+        self.load_messages()
+
+    def on_leave(self, *args):
+        if hasattr(self,'event'):
+            self.event.cancel()
     
     def send_message(self, message_text):
         url = "http://127.0.0.1:5000/send_message"
@@ -254,31 +310,37 @@ class chatting(MDScreen):
             print("Send error:", e)
     
     def load_messages(self):
-        user_id = self.manager.user_id
-        friend_id = self.friend_id
+        url = "http://127.0.0.1:5000/get_messages"
 
-        url = f"http://127.0.0.1:5000/get_messages/{user_id}/{friend_id}"
+        data = {
+            "user_id": self.manager.user_id,
+            "friend_id": self.friend_id
+        }
 
         try:
-            response = requests.get(url)
-            data = response.json()
+            response = requests.post(url, json=data)
+            messages = response.json().get("messages", [])
 
+            # Clear old UI messages
             self.chat_list.clear_widgets()
 
-            if "messages" in data:
-                for msg in data["messages"]:
-                    text = msg["message"]
+            for msg in messages:
+                text = msg["message"]
+                sender = msg["sender_id"]
 
-                    if msg["sender_id"] == user_id:
-                        bubble = OneLineListItem(text=f"You: {text}")
-                    else:
-                        bubble = OneLineListItem(text=f"Friend: {text}")
+                if sender == self.manager.user_id:
+                    bubble = MessageBubble(text=text, sender="me")
+                else:
+                    bubble = MessageBubble(text=text, sender="friend")
 
-                    self.chat_list.add_widget(bubble)
+                self.chat_list.add_widget(bubble)
+
+            if self.scroll.scroll_y < 0.05:
+                # Auto scroll to bottom
+                self.scroll.scroll_y = 0
 
         except Exception as e:
-            print("Load message error:", e)
-
+            print("Auto refresh error:", e)
 
 
 

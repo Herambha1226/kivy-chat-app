@@ -114,7 +114,7 @@ class home(MDScreen):
 
     def load_friends(self):
         user_id = getattr(self.manager, "user_id", None)
-        url = f"http://127.0.0.1:5000/get_friends/{user_id}"
+        url = f"https://herambha-chat-app.onrender.com/get_friends/{user_id}"
 
         try:
             response = requests.get(url)
@@ -289,7 +289,7 @@ class chatting(MDScreen):
             self.event.cancel()
     
     def send_message(self, message_text):
-        url = "http://127.0.0.1:5000/send_message"
+        url = "https://herambha-chat-app.onrender.com/send_message"
 
         data = {
             "sender_id": self.manager.user_id,
@@ -310,7 +310,7 @@ class chatting(MDScreen):
             print("Send error:", e)
     
     def load_messages(self):
-        url = "http://127.0.0.1:5000/get_messages"
+        url = "https://herambha-chat-app.onrender.com/get_messages"
 
         data = {
             "user_id": self.manager.user_id,
@@ -407,7 +407,7 @@ class all_users(MDScreen):
 
     # 🚀 MAIN WORKING FUNCTION
     def get_all_users(self):
-        url = "http://127.0.0.1:5000/all_friends"
+        url = "https://herambha-chat-app.onrender.com/all_friends"
 
         try:
             response = requests.get(url)
@@ -448,7 +448,7 @@ class all_users(MDScreen):
     
     def add_friend(self,friend_name):
         if friend_name not in self.friends:
-            url = "http://127.0.0.1:5000/add_friend"
+            url = "https://herambha-chat-app.onrender.com/add_friend"
             data = {
                 "user_id":self.manager.user_id,
                 "friend_name":friend_name

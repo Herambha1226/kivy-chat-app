@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash,check_password_hash
 import smtplib
 import random
 from email.message import EmailMessage
+import resend
 
 app = Flask(__name__)
 app.secret_key = "@messaging-to-friend"
@@ -36,6 +37,8 @@ import os
 
 Email_Admin = os.getenv("Email_Admin")
 Pass_Admin = os.getenv("Pass_Admin")
+resend.api_key = os.getenv("RESEND_API_KEY")
+
 @app.route("/verification",methods=["POST"])
 def verification():
     data = request.get_json()
@@ -44,19 +47,16 @@ def verification():
     
     user_email = data["user_email"]
     session["user_email"] = user_email
-    msg = EmailMessage()
-    msg['From'] = Email_Admin
-    msg["To"] = user_email
-    msg["Subject"] = "Email Verification For The Messaging App"
 
     otp = random.randint(100000,999999)
     session['otp'] = otp
     otp_storage[user_email] = otp
-
-    msg.set_content(f"These verification otp from the messaging app {otp}")
-    with smtplib.SMTP_SSL("smtp.gmail.com",465,timeout=10) as server:
-        server.login(Email_Admin,Pass_Admin)
-        server.send_message(msg)
+    resend.Emails.send({
+            "from": Email_Admin,
+            "to": user_email,
+            "subject": "Email Verification OTP",
+            "html": f"<h2>Your OTP is: {otp}</h2>"
+        })
     return jsonify({"message":"OTP send successfully."})
     
 @app.route("/verification2",methods=["GET","POST"])

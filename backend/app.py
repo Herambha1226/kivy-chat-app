@@ -32,8 +32,10 @@ class User_Creation(db.Model):
 
 
 otp_storage = {}
-Email_Admin = "pallapothugayathri23@gmail.com"
-Pass_Admin = ""
+import os
+
+Email_Admin = os.getenv("Email_Admin")
+Pass_Admin = os.getenv("Pass_Admin")
 @app.route("/verification",methods=["POST"])
 def verification():
     data = request.get_json()

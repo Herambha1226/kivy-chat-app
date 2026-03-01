@@ -13,7 +13,7 @@ from kivymd.toast import toast
 from mainscreen import home,chatting,all_users
 import requests
 
-url = "http://127.0.0.1:5000"
+url = "https://herambha-chat-app.onrender.com/"
 
 class Start_Screen(MDScreen):
     def __init__(self, *args, **kwargs):
@@ -248,7 +248,7 @@ class Login_Screen(MDScreen):
         self.manager.current = "start"
     
     def login_user(self,instance):
-        login_url = "http://127.0.0.1:5000/user_login"
+        login_url = "https://herambha-chat-app.onrender.com/user_login"
         user_name = self.user_input.text.strip()
         user_pass = self.pass_input.text.strip()
         if not user_name or not user_pass:
@@ -427,7 +427,7 @@ class signup_Screen(MDScreen):
         if not email:
             toast("Enter email first !")
             return
-        otp_url = "http://127.0.0.1:5000/verification"
+        otp_url = "https://herambha-chat-app.onrender.com/verification"
 
         data = {
             "user_email" : email
@@ -441,7 +441,7 @@ class signup_Screen(MDScreen):
             toast("Server not running !")
     
     def check_otp(self,instance):
-        otp_url = "http://127.0.0.1:5000/verification2"
+        otp_url = "https://herambha-chat-app.onrender.com/verification2"
         otp = self.otp_input.text.strip()
         self.email = self.email_input.text.strip()
         
@@ -600,7 +600,7 @@ class new_user_screen(MDScreen):
     def go_to_back(self,*args):
         self.manager.current = "signup"
     def create_user(self,instance):
-        create_user_url = "http://127.0.0.1:5000/user_create"
+        create_user_url = "https://herambha-chat-app.onrender.com/user_create"
         user_name =  self.username_input.text.strip()
         user_pass = self.pass_input.text.strip()
         if not user_name or not user_pass:

@@ -1,8 +1,6 @@
 Flask
 flask-cors
-requests
 gunicorn
-random
-smtplib
-email
+flask_sqlalchemy
 requests
+resend

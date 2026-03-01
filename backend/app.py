@@ -54,7 +54,7 @@ def verification():
     otp_storage[user_email] = otp
 
     msg.set_content(f"These verification otp from the messaging app {otp}")
-    with smtplib.SMTP_SSL("smtp.gmail.com",465) as server:
+    with smtplib.SMTP_SSL("smtp.gmail.com",465,timeout=10) as server:
         server.login(Email_Admin,Pass_Admin)
         server.send_message(msg)
     return jsonify({"message":"OTP send successfully."})

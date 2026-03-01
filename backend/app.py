@@ -52,7 +52,7 @@ def verification():
     session['otp'] = otp
     otp_storage[user_email] = otp
     resend.Emails.send({
-            "from": Email_Admin,
+            "from": "onboarding@resend.dev",
             "to": user_email,
             "subject": "Email Verification OTP",
             "html": f"<h2>Your OTP is: {otp}</h2>"
